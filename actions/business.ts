@@ -31,6 +31,7 @@ export type FormState = {
   success: boolean;
   message: string | null;
   errors?: Record<string, string[]> | null;
+  businessName?: string;
 };
 
 export async function createBusiness(
@@ -84,6 +85,7 @@ export async function createBusiness(
     description,
   } = validatedFields.data;
   let logoUrl = null;
+  let newBusiness;
 
   try {
     // Check if user is already in a business
@@ -125,7 +127,7 @@ export async function createBusiness(
       logoUrl = uploadResult.secure_url;
     }
 
-    const newBusiness = await prisma.business.create({
+    newBusiness = await prisma.business.create({
       data: {
         name,
         logoUrl,
@@ -169,6 +171,7 @@ export async function createBusiness(
   return {
     success: true,
     message: 'Business created successfully! Redirecting to your dashboard...',
+    businessName: newBusiness.name,
   };
 }
 

@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 const businesses = [
   {
     name: 'Elite Auto Detailing',
-    logoUrl: null,
+    logoUrl:
+      'https://res.cloudinary.com/dm67utfve/image/upload/v1751904163/xxqumx1rviez5kee8bpp.png',
     businessType: 'both',
     address: '123 Main St',
     city: 'Los Angeles',
@@ -79,30 +80,35 @@ const users = [
     email: 'owner1@example.com',
     firstName: 'John',
     lastName: 'Doe',
+    imageUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
   },
   {
     clerkId: 'user_3jI5rZ2a0kL9gM7O4pB6cF8YdWe',
     email: 'owner2@example.com',
     firstName: 'Jane',
     lastName: 'Smith',
+    imageUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026705d',
   },
   {
     clerkId: 'user_4kK6sA3b1lM0hN8P5qC7dG9ZeXf',
     email: 'owner3@example.com',
     firstName: 'Peter',
     lastName: 'Jones',
+    imageUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026706d',
   },
   {
     clerkId: 'user_5lL7tB4c2mN1iO9Q6rD8eH0AfYg',
     email: 'owner4@example.com',
     firstName: 'Mary',
     lastName: 'Johnson',
+    imageUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026707d',
   },
   {
     clerkId: 'user_6mM8uC5d3nO2jP0R7sE9fI1BgZh',
     email: 'owner5@example.com',
     firstName: 'David',
     lastName: 'Williams',
+    imageUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026708d',
   },
 ];
 
@@ -123,7 +129,7 @@ async function main() {
     const business = await prisma.business.create({
       data: {
         ...businessData,
-        ownerId: owner.id,
+        ownerId: owner.clerkId, // Use clerkId for the ownerId
       },
     });
 

@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { LoadScript, Autocomplete } from '@react-google-maps/api';
+import { useRouter } from 'next/navigation';
 
 const ACCEPTED_IMAGE_TYPES = [
   'image/jpeg',
@@ -78,6 +79,7 @@ const formSchema = z.object({
 export default function CreateNewBusinessPage() {
   const [state, formAction, isPending] = useActionState(createBusiness, null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -97,6 +99,16 @@ export default function CreateNewBusinessPage() {
   });
 
   useEffect(() => {
+    if (state?.success && state.businessName) {
+      toast.success(state.message);
+      const businessSlug = encodeURIComponent(
+        state.businessName.toLowerCase().replace(/\s+/g, '-')
+      );
+      const timer = setTimeout(() => {
+        router.push(`/dashboard/${businessSlug}`);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
     if (state && !state.success) {
       if (state.errors) {
         Object.values(state.errors).forEach(errorArray => {
@@ -108,7 +120,7 @@ export default function CreateNewBusinessPage() {
         toast.error(state.message);
       }
     }
-  }, [state]);
+  }, [state, router]);
 
   const onLoad = (ac: google.maps.places.Autocomplete) => {
     autocompleteRef.current = ac;
@@ -139,17 +151,6 @@ export default function CreateNewBusinessPage() {
       }
     }
   };
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    const formData = new FormData();
-    for (const key in values) {
-      const value = values[key as keyof typeof values];
-      if (value) {
-        formData.append(key, value as string | Blob);
-      }
-    }
-    formAction(formData);
-  }
 
   const businessTypes = [
     {
@@ -189,7 +190,7 @@ export default function CreateNewBusinessPage() {
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
+            <form action={formAction} className='space-y-8'>
               <Card>
                 <CardHeader>
                   <CardTitle>Business Profile</CardTitle>

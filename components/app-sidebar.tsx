@@ -1,25 +1,19 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import {
   BookOpen,
-  Bot,
-  Clock,
   Command,
   Component,
-  Frame,
-  Hash,
   HelpCircle,
-  LifeBuoy,
-  Map,
   MessageCircle,
-  MoreHorizontal,
-  PanelLeft,
-  PieChart,
   PlaySquare,
-  Send,
   Settings2,
-  SquareTerminal,
+  Clock,
+  Send,
+  MoreHorizontal,
+  Hash,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
@@ -36,152 +30,114 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
-const data = {
-  user: {
-    name: 'shadcn',
-    email: 'm@example.com',
-    avatar: 'https://github.com/shadcn.png',
-  },
-  navMain: [
-    {
-      title: 'Playground',
-      url: '#',
-      icon: PlaySquare,
-      isActive: true,
-      items: [
-        {
-          title: 'History',
-          url: '#',
-        },
-        {
-          title: 'Starred',
-          url: '#',
-        },
-        {
-          title: 'Settings',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Models',
-      url: '#',
-      icon: Component,
-      items: [
-        {
-          title: 'Genesis',
-          url: '#',
-        },
-        {
-          title: 'Explorer',
-          url: '#',
-        },
-        {
-          title: 'Quantum',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Documentation',
-      url: '#',
-      icon: BookOpen,
-      items: [
-        {
-          title: 'Introduction',
-          url: '#',
-        },
-        {
-          title: 'Get Started',
-          url: '#',
-        },
-        {
-          title: 'Tutorials',
-          url: '#',
-        },
-        {
-          title: 'Changelog',
-          url: '#',
-        },
-      ],
-    },
-    {
-      title: 'Settings',
-      url: '#',
-      icon: Settings2,
-      items: [
-        {
-          title: 'General',
-          url: '#',
-        },
-        {
-          title: 'Team',
-          url: '#',
-        },
-        {
-          title: 'Billing',
-          url: '#',
-        },
-        {
-          title: 'Limits',
-          url: '#',
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: 'Support',
-      url: '#',
-      icon: HelpCircle,
-    },
-    {
-      title: 'Feedback',
-      url: '#',
-      icon: MessageCircle,
-    },
-  ],
-  projects: [
-    {
-      name: 'Design Engineering',
-      url: '#',
-      icon: Hash,
-    },
-    {
-      name: 'Sales & Marketing',
-      url: '#',
-      icon: Clock,
-    },
-    {
-      name: 'Travel',
-      url: '#',
-      icon: Send,
-    },
-    {
-      name: 'More',
-      url: '#',
-      icon: MoreHorizontal,
-    },
-  ],
+type BusinessInfo = {
+  name: string;
+  logoUrl: string | null;
+} | null;
+
+type UserInfo = {
+  name: string;
+  email: string;
+  avatar: string;
+  role: string;
 };
+
+// Static navigation data can be defined outside the component
+const navMainItems = [
+  {
+    title: 'Playground',
+    url: '#',
+    icon: PlaySquare,
+    isActive: true,
+    items: [
+      { title: 'History', url: '#' },
+      { title: 'Starred', url: '#' },
+      { title: 'Settings', url: '#' },
+    ],
+  },
+  {
+    title: 'Models',
+    url: '#',
+    icon: Component,
+    items: [
+      { title: 'Genesis', url: '#' },
+      { title: 'Explorer', url: '#' },
+      { title: 'Quantum', url: '#' },
+    ],
+  },
+  {
+    title: 'Documentation',
+    url: '#',
+    icon: BookOpen,
+    items: [
+      { title: 'Introduction', url: '#' },
+      { title: 'Get Started', url: '#' },
+      { title: 'Tutorials', url: '#' },
+      { title: 'Changelog', url: '#' },
+    ],
+  },
+  {
+    title: 'Settings',
+    url: '#',
+    icon: Settings2,
+    items: [
+      { title: 'General', url: '#' },
+      { title: 'Team', url: '#' },
+      { title: 'Billing', url: '#' },
+      { title: 'Limits', url: '#' },
+    ],
+  },
+];
+
+const navSecondaryItems = [
+  { title: 'Support', url: '#', icon: HelpCircle },
+  { title: 'Feedback', url: '#', icon: MessageCircle },
+];
+
+const projectItems = [
+  { name: 'Design Engineering', url: '#', icon: Hash },
+  { name: 'Sales & Marketing', url: '#', icon: Clock },
+  { name: 'Travel', url: '#', icon: Send },
+  { name: 'More', url: '#', icon: MoreHorizontal },
+];
 
 export function AppSidebar({
   isNavDisabled,
+  business,
+  user,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { isNavDisabled?: boolean }) {
+}: React.ComponentProps<typeof Sidebar> & {
+  isNavDisabled?: boolean;
+  business: BusinessInfo;
+  user: UserInfo;
+}) {
   return (
     <Sidebar variant='inset' {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size='lg' asChild>
-              <a href='#'>
-                <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg'>
-                  <Command className='size-4' />
+              <a href='/dashboard'>
+                <div className='bg-sidebar-primary flex aspect-square size-10 items-center justify-center rounded-md'>
+                  {business?.logoUrl ? (
+                    <Image
+                      src={business.logoUrl}
+                      alt={business.name}
+                      width={32}
+                      height={32}
+                      className='h-full w-full rounded-md object-cover'
+                    />
+                  ) : (
+                    <Command className='size-4 text-sidebar-primary-foreground' />
+                  )}
                 </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-medium'>Acme Inc</span>
-                  <span className='truncate text-xs'>Enterprise</span>
+                  <span className='truncate font-bold'>
+                    {business?.name ?? 'No Business'}
+                  </span>
+                  <span className='truncate text-xs capitalize'>
+                    {user.role}
+                  </span>
                 </div>
               </a>
             </SidebarMenuButton>
@@ -189,16 +145,16 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} isDisabled={isNavDisabled} />
-        <NavProjects projects={data.projects} isDisabled={isNavDisabled} />
+        <NavMain items={navMainItems} isDisabled={isNavDisabled} />
+        <NavProjects projects={projectItems} isDisabled={isNavDisabled} />
         <NavSecondary
-          items={data.navSecondary}
+          items={navSecondaryItems}
           className='mt-auto'
           isDisabled={isNavDisabled}
         />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   );

@@ -16,15 +16,20 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  clerkId     String        @unique
-  email       String        @unique
-  firstName   String?
-  lastName    String?
-  businessId  String?
-  business    Business?     @relation(fields: [businessId], references: [id])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  imageUrl String?
+  lastSeen DateTime?
+
+  business   Business? @relation(fields: [businessId], references: [id])
+  businessId String?
+
   JoinRequest JoinRequest[]
 }
 
