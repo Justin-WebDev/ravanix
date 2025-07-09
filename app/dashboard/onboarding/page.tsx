@@ -14,7 +14,7 @@ export default async function Onboarding() {
 
   // Check if the user already has a business
   const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
+    where: { id: userId },
   });
 
   if (user && user.businessId) {

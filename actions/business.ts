@@ -90,7 +90,7 @@ export async function createBusiness(
   try {
     // Check if user is already in a business
     const existingUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
+      where: { id: userId },
     });
 
     if (existingUser && existingUser.businessId) {
@@ -136,7 +136,6 @@ export async function createBusiness(
         city,
         state,
         zipCode,
-        location,
         ownerId: userId,
         phone,
         website,
@@ -145,12 +144,12 @@ export async function createBusiness(
     });
 
     await prisma.user.upsert({
-      where: { clerkId: userId },
+      where: { id: userId },
       update: {
         businessId: newBusiness.id,
       },
       create: {
-        clerkId: userId,
+        id: userId,
         email: user.emailAddresses[0].emailAddress,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -200,10 +199,10 @@ export async function joinBusiness(
   try {
     // Ensure user exists in our database
     const dbUser = await prisma.user.upsert({
-      where: { clerkId: userId },
+      where: { id: userId },
       update: {},
       create: {
-        clerkId: userId,
+        id: userId,
         email: user.emailAddresses[0].emailAddress,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -288,23 +287,19 @@ export async function fetchBusinesses() {
       phone: true,
       website: true,
       description: true,
-      location: true,
       createdAt: true,
       ownerId: true,
-      _count: {
-        select: { members: true },
-      },
+      // Remove _count.members, as 'members' is not a valid relation
     },
   });
   return businesses.map(b => {
-    const { _count, ...businessData } = b;
     return {
-      ...businessData,
+      ...b,
       businessType: b.businessType as 'mobile' | 'shop' | 'both',
-      members: _count.members,
       description: b.description ?? '',
       phone: b.phone ?? '',
       website: b.website ?? '',
+      // Remove members property, as _count.members is not available
     };
   });
 }

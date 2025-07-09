@@ -24,13 +24,13 @@ export default async function DashboardLayout({
   }
 
   const dbUser = await prisma.user.findUnique({
-    where: { clerkId: userId },
+    where: { id: userId },
     include: {
       business: {
         include: {
-          members: {
+          employees: {
             where: {
-              clerkId: { not: userId },
+              id: { not: userId },
             },
             select: {
               id: true,
@@ -46,7 +46,7 @@ export default async function DashboardLayout({
   });
 
   const business = dbUser?.business ?? null;
-  const employees = dbUser?.business?.members ?? [];
+  const employees = dbUser?.business?.employees ?? [];
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
   const onlineEmployees = employees.filter(
@@ -72,8 +72,8 @@ export default async function DashboardLayout({
           isNavDisabled={isNavDisabled}
           business={business}
           user={userDetails}
-          onlineEmployees={onlineEmployees}
-          offlineEmployees={offlineEmployees}
+          // onlineEmployees={onlineEmployees}
+          // offlineEmployees={offlineEmployees}
         />
         <SidebarInset>{children}</SidebarInset>
       </SidebarProvider>
