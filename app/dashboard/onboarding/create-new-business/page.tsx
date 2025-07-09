@@ -1,12 +1,12 @@
 'use client';
 
-import { useActionState, useRef, useEffect } from 'react';
+import { useActionState, useRef, useEffect, startTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createBusiness } from '@/actions/business';
-import { useForm } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v4';
 import {
   Card,
   CardContent,
@@ -46,45 +46,37 @@ const ACCEPTED_IMAGE_TYPES = [
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const formSchema = z.object({
-  name: z
-    .string()
-    .min(3, { message: 'Business name must be at least 3 characters.' }),
-  businessType: z.enum(['mobile', 'shop', 'both'], {
-    required_error: 'You must select a business type.',
-  }),
+  name: z.string().min(3).max(50),
+  businessType: z.enum(['mobile', 'shop', 'both']),
   address: z.string().min(1, 'Address is required.'),
   city: z.string().min(1, 'City is required.'),
   state: z.string().min(1, 'State is required.'),
-  zipCode: z.string().min(5, 'A valid zip code is required.'),
+  zipCode: z.string().min(5, 'A valid zip code is required.').max(10),
   phone: z.string().optional(),
   website: z
-    .string()
-    .url({ message: 'Please enter a valid URL.' })
+    .url({
+      protocol: /^https?$/,
+      hostname: z.regexes.domain,
+    })
     .optional()
     .or(z.literal('')),
-  description: z.string().optional(),
-  logo: z
-    .custom<File | undefined>()
-    .refine(
-      file => !file || file.size <= MAX_IMAGE_SIZE,
-      'Max image size is 5MB.'
-    )
-    .refine(
-      file => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
-      'Only .jpg, .jpeg, .png and .webp formats are supported.'
-    ),
+  description: z.string().max(250).optional(),
+  logo: z.file().max(MAX_IMAGE_SIZE).mime(ACCEPTED_IMAGE_TYPES).optional(),
   location: z.string().min(1, 'Location is required.'),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 export default function CreateNewBusinessPage() {
   const [state, formAction, isPending] = useActionState(createBusiness, null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
+      businessType: 'mobile',
       address: '',
       city: '',
       state: '',
@@ -111,16 +103,20 @@ export default function CreateNewBusinessPage() {
     }
     if (state && !state.success) {
       if (state.errors) {
-        Object.values(state.errors).forEach(errorArray => {
-          if (errorArray) {
-            errorArray.forEach(error => toast.error(error));
+        Object.entries(state.errors).forEach(([field, errors]) => {
+          if (errors) {
+            form.setError(field as keyof FormValues, {
+              type: 'server',
+              message: errors.join(', '),
+            });
           }
         });
+        toast.error('Please correct the errors in the form.');
       } else if (state.message) {
         toast.error(state.message);
       }
     }
-  }, [state, router]);
+  }, [state, router, form]);
 
   const onLoad = (ac: google.maps.places.Autocomplete) => {
     autocompleteRef.current = ac;
@@ -137,16 +133,18 @@ export default function CreateNewBusinessPage() {
         const route = get('route');
         const address = street_number ? `${street_number} ${route}` : route;
 
-        form.setValue('address', address);
-        form.setValue('city', get('locality'));
-        form.setValue('state', get('administrative_area_level_1'));
-        form.setValue('zipCode', get('postal_code'));
+        form.setValue('address', address, { shouldValidate: true });
+        form.setValue('city', get('locality'), { shouldValidate: true });
+        form.setValue('state', get('administrative_area_level_1'), {
+          shouldValidate: true,
+        });
+        form.setValue('zipCode', get('postal_code'), { shouldValidate: true });
         if (place.geometry?.location) {
           form.setValue(
             'location',
-            JSON.stringify(place.geometry.location.toJSON())
+            JSON.stringify(place.geometry.location.toJSON()),
+            { shouldValidate: true }
           );
-          form.trigger('location');
         }
       }
     }
@@ -176,6 +174,21 @@ export default function CreateNewBusinessPage() {
     return <div>Error: Google Maps API key is missing.</div>;
   }
 
+  // **This is the key change: Manually constructing FormData**
+  const onSubmit: SubmitHandler<FormValues> = data => {
+    const formData = new FormData();
+    // Append all key-value pairs from the form data
+    for (const key in data) {
+      const value = data[key as keyof FormValues];
+      if (value instanceof File) {
+        formData.append(key, value);
+      } else if (typeof value === 'string') {
+        formData.append(key, value);
+      }
+    }
+    startTransition(() => formAction(formData));
+  };
+
   return (
     <LoadScript googleMapsApiKey={googleMapsApiKey} libraries={['places']}>
       <main className='flex flex-1 items-center justify-center p-4 sm:p-6 lg:p-8'>
@@ -190,7 +203,8 @@ export default function CreateNewBusinessPage() {
           </div>
 
           <Form {...form}>
-            <form action={formAction} className='space-y-8'>
+            {/* The form now uses react-hook-form's handleSubmit */}
+            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
               <Card>
                 <CardHeader>
                   <CardTitle>Business Profile</CardTitle>
@@ -247,10 +261,7 @@ export default function CreateNewBusinessPage() {
                                 variant='destructive'
                                 size='icon'
                                 className='absolute right-0 top-0 z-10 h-6 w-6 -translate-y-1/2 translate-x-1/2 rounded-full cursor-pointer transition-all hover:scale-110 hover:rotate-6'
-                                onClick={e => {
-                                  e.preventDefault();
-                                  field.onChange(undefined);
-                                }}
+                                onClick={() => form.setValue('logo', undefined)}
                               >
                                 <X className='h-4 w-4' />
                               </Button>
@@ -273,10 +284,9 @@ export default function CreateNewBusinessPage() {
                             type='file'
                             className='sr-only'
                             accept='image/png, image/jpeg, image/gif, image/webp'
-                            ref={field.ref}
                             onChange={e => {
                               const file = e.target.files?.[0];
-                              field.onChange(file);
+                              form.setValue('logo', file);
                             }}
                           />
                         </FormControl>
@@ -294,7 +304,7 @@ export default function CreateNewBusinessPage() {
                         <FormControl>
                           <RadioGroup
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                             className='grid grid-cols-1 gap-4 md:grid-cols-3'
                           >
                             {businessTypes.map(type => (
@@ -325,6 +335,8 @@ export default function CreateNewBusinessPage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* ... all other FormField components remain the same ... */}
 
                   <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                     <FormField

@@ -5,7 +5,6 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import prisma from '@/lib/prisma';
-import { SocketProvider } from '@/hooks/use-socket';
 
 export default async function DashboardLayout({
   children,
@@ -66,17 +65,15 @@ export default async function DashboardLayout({
   };
 
   return (
-    <SocketProvider>
-      <SidebarProvider>
-        <AppSidebar
-          isNavDisabled={isNavDisabled}
-          business={business}
-          user={userDetails}
-          // onlineEmployees={onlineEmployees}
-          // offlineEmployees={offlineEmployees}
-        />
-        <SidebarInset>{children}</SidebarInset>
-      </SidebarProvider>
-    </SocketProvider>
+    <SidebarProvider>
+      <AppSidebar
+        isNavDisabled={isNavDisabled}
+        business={business}
+        user={userDetails}
+        // onlineEmployees={onlineEmployees}
+        // offlineEmployees={offlineEmployees}
+      />
+      <SidebarInset>{children}</SidebarInset>
+    </SidebarProvider>
   );
 }
