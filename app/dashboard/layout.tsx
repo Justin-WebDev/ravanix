@@ -5,6 +5,8 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import prisma from '@/lib/prisma';
+import { NavEmployees } from '@/components/nav-employees'; // Import NavEmployees
+import { AblyReactProvider } from '@/components/ably-provider';
 
 export default async function DashboardLayout({
   children,
@@ -28,15 +30,14 @@ export default async function DashboardLayout({
       business: {
         include: {
           employees: {
-            where: {
-              id: { not: userId },
-            },
+            // where: {
+            //   id: { not: userId },
+            // },
             select: {
               id: true,
               firstName: true,
               lastName: true,
               imageUrl: true,
-              lastSeen: true,
             },
           },
         },
@@ -46,14 +47,6 @@ export default async function DashboardLayout({
 
   const business = dbUser?.business ?? null;
   const employees = dbUser?.business?.employees ?? [];
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
-  const onlineEmployees = employees.filter(
-    e => e.lastSeen && e.lastSeen > fiveMinutesAgo
-  );
-  const offlineEmployees = employees.filter(
-    e => !e.lastSeen || e.lastSeen <= fiveMinutesAgo
-  );
 
   const userDetails = {
     name: user.firstName
@@ -62,18 +55,21 @@ export default async function DashboardLayout({
     email: user.emailAddresses[0].emailAddress,
     avatar: user.imageUrl,
     role: (user.publicMetadata.role as string) || 'user',
+    id: user.id,
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar
-        isNavDisabled={isNavDisabled}
-        business={business}
-        user={userDetails}
-        // onlineEmployees={onlineEmployees}
-        // offlineEmployees={offlineEmployees}
-      />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+    <AblyReactProvider>
+      <SidebarProvider>
+        <AppSidebar
+          isNavDisabled={isNavDisabled}
+          business={business}
+          user={userDetails}
+          employees={employees}
+          businessId={business?.id ?? null}
+        />
+        <SidebarInset>{children}</SidebarInset>
+      </SidebarProvider>
+    </AblyReactProvider>
   );
 }

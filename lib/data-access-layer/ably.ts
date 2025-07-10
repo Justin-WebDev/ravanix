@@ -1,4 +1,5 @@
 // lib/data-access-layer/ably.ts
+'use server';
 import * as Ably from 'ably';
 import { auth } from '@clerk/nextjs/server';
 

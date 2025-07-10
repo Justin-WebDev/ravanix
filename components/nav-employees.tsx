@@ -22,10 +22,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
+import { type PresenceMessage } from 'ably';
 
 type Employee = {
   id: string;
-  clerkId: string;
   firstName: string | null;
   lastName: string | null;
   imageUrl: string | null;
@@ -38,7 +38,7 @@ type CurrentUser = {
 };
 
 type NavEmployeesProps = {
-  allEmployees: Employee[];
+  employees: Employee[];
   businessId: string | null;
   currentUser: CurrentUser;
 };
@@ -47,9 +47,11 @@ type NavEmployeesProps = {
 const EmployeeListItem = ({
   employee,
   isOnline,
+  isCurrentUser,
 }: {
   employee: Employee;
   isOnline: boolean;
+  isCurrentUser?: boolean; // Make it optional ***
 }) => (
   <SidebarMenuSubItem>
     <SidebarMenuSubButton
@@ -71,8 +73,9 @@ const EmployeeListItem = ({
             <div className='absolute -bottom-0.5 -right-0.5 rounded-full bg-green-500 p-0.5 ring-2 ring-sidebar-accent' />
           )}
         </div>
-        <span>
+        <span className={cn(isCurrentUser && 'font-bold text-primary')}>
           {`${employee.firstName || ''} ${employee.lastName || ''}`.trim()}
+          {isCurrentUser && ' (me)'}
         </span>
       </Link>
     </SidebarMenuSubButton>
@@ -86,12 +89,14 @@ const EmployeeList = ({
   isOpen,
   onOpenChange,
   isOnline,
+  currentUser, // Pass currentUser down ***
 }: {
   title: string;
   employees: Employee[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   isOnline: boolean;
+  currentUser: CurrentUser; // Add this prop ***
 }) => (
   <Collapsible asChild open={isOpen} onOpenChange={onOpenChange}>
     <SidebarMenuItem className='flex flex-col items-start'>
@@ -115,6 +120,7 @@ const EmployeeList = ({
                 key={employee.id}
                 employee={employee}
                 isOnline={isOnline}
+                isCurrentUser={employee.id === currentUser.id} // Check if it's the current user ***
               />
             ))
           ) : (
@@ -131,22 +137,43 @@ const EmployeeList = ({
 );
 
 export function NavEmployees({
-  allEmployees,
+  employees,
   businessId,
   currentUser,
 }: NavEmployeesProps) {
   const channelName = `business:${businessId}`;
 
   const { presenceData } = usePresenceListener(channelName);
+  // const [presenceData, setPresenceData] = useState<PresenceMessage[]>([]);
+  // usePresenceListener(`business:${businessId}`, (message: PresenceMessage) => {
+  //   setPresenceData(prev => {
+  //     if (message.action === 'enter' || message.action === 'present') {
+  //       const existingMember = prev.find(member => member.id === message.id);
+  //       if (existingMember) {
+  //         return prev.map(member =>
+  //           member.id === message.id ? message : member
+  //         );
+  //       }
+  //       return [...prev, message];
+  //     } else if (message.action === 'leave') {
+  //       return prev.filter(
+  //         member => member.connectionId !== message.connectionId
+  //       );
+  //     }
+  //     return prev;
+  //   });
+  // });
 
-  const onlineEmployeeIds = new Set(presenceData.map(member => member.data.id));
+  const onlineEmployeeIds = new Set(presenceData.map(member => member.id));
 
-  const onlineEmployees = allEmployees.filter(e =>
-    onlineEmployeeIds.has(e.clerkId)
-  );
-  const offlineEmployees = allEmployees.filter(
-    e => !onlineEmployeeIds.has(e.clerkId)
-  );
+  const onlineEmployees = employees
+    .filter(e => onlineEmployeeIds.has(e.id))
+    .sort((a, b) => {
+      if (a.id === currentUser.id) return 1; // 'a' (current user) comes last
+      if (b.id === currentUser.id) return -1; // 'b' (current user) comes last
+      return (a.firstName || '').localeCompare(b.firstName || ''); // Sort others alphabetically
+    });
+  const offlineEmployees = employees.filter(e => !onlineEmployeeIds.has(e.id));
 
   const [onlineOpen, setOnlineOpen] = useState(true);
   const [offlineOpen, setOfflineOpen] = useState(false);
@@ -165,6 +192,7 @@ export function NavEmployees({
           isOpen={onlineOpen}
           onOpenChange={setOnlineOpen}
           isOnline={true}
+          currentUser={currentUser}
         />
         <EmployeeList
           title='Offline'
@@ -172,6 +200,7 @@ export function NavEmployees({
           isOpen={offlineOpen}
           onOpenChange={setOfflineOpen}
           isOnline={false}
+          currentUser={currentUser}
         />
       </SidebarMenu>
     </SidebarGroup>

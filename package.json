@@ -27,6 +27,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@react-google-maps/api": "^2.20.7",
     "ably": "^2.10.0",
+    "babel-plugin-react-compiler": "^19.1.0-rc.2",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.7.0",
     "clsx": "^2.1.1",
