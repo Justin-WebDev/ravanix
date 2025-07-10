@@ -8,10 +8,13 @@ import { Suspense, useEffect, useState } from 'react';
 
 // This is a client component that will be rendered on the client
 export function AblyReactProvider({ children }: { children: React.ReactNode }) {
-  // const { getToken } = useAuth();
+  const { userId } = useAuth();
   const [client, setClient] = useState<Ably.Realtime | null>(null);
 
   useEffect(() => {
+    if (!userId) {
+      return;
+    }
     // We only want to run this code on the client, after the component has mounted.
     const ablyClient = new Ably.Realtime({
       authCallback: async (tokenParams, callback) => {
@@ -26,14 +29,13 @@ export function AblyReactProvider({ children }: { children: React.ReactNode }) {
         }
       },
     });
-
     setClient(ablyClient);
 
     // This is the cleanup function that will be called when the component unmounts.
     return () => {
       ablyClient.close();
     };
-  }, []); // The empty dependency array ensures this runs only once.
+  }, [userId]); // The empty dependency array ensures this runs only once.
 
   if (!client) {
     // Render a loading state or null while the client is being initialized.

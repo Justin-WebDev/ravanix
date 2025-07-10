@@ -33,13 +33,11 @@ type Employee = {
 
 type CurrentUser = {
   id: string;
-  name: string;
-  avatar: string;
 };
 
 type NavEmployeesProps = {
   employees: Employee[];
-  businessId: string | null;
+  businessId: string;
   currentUser: CurrentUser;
 };
 
@@ -57,20 +55,21 @@ const EmployeeListItem = ({
     <SidebarMenuSubButton
       asChild
       className={cn(
-        'justify-start',
+        'justify-start py-5',
+
         !isOnline && 'text-muted-foreground hover:text-accent-foreground'
       )}
     >
       <Link href={`/dashboard/employees/${employee.id}`}>
         <div className='relative'>
-          <Avatar className='size-5'>
+          <Avatar className='relative -z-10 size-7'>
             <AvatarImage src={employee.imageUrl ?? undefined} />
             <AvatarFallback>
-              <UserCircle2 className='size-4' />
+              <UserCircle2 className='size-7' />
             </AvatarFallback>
           </Avatar>
           {isOnline && (
-            <div className='absolute -bottom-0.5 -right-0.5 rounded-full bg-green-500 p-0.5 ring-2 ring-sidebar-accent' />
+            <div className='absolute -bottom-0.5 -right-0.5 z-20 rounded-full bg-green-500 p-1.5 ring-2 ring-sidebar-accent' />
           )}
         </div>
         <span className={cn(isCurrentUser && 'font-bold text-primary')}>
@@ -141,30 +140,16 @@ export function NavEmployees({
   businessId,
   currentUser,
 }: NavEmployeesProps) {
-  const channelName = `business:${businessId}`;
+  const channelName = `${businessId}`;
 
+  usePresence(channelName, { status: `${currentUser} signed in` });
   const { presenceData } = usePresenceListener(channelName);
-  // const [presenceData, setPresenceData] = useState<PresenceMessage[]>([]);
-  // usePresenceListener(`business:${businessId}`, (message: PresenceMessage) => {
-  //   setPresenceData(prev => {
-  //     if (message.action === 'enter' || message.action === 'present') {
-  //       const existingMember = prev.find(member => member.id === message.id);
-  //       if (existingMember) {
-  //         return prev.map(member =>
-  //           member.id === message.id ? message : member
-  //         );
-  //       }
-  //       return [...prev, message];
-  //     } else if (message.action === 'leave') {
-  //       return prev.filter(
-  //         member => member.connectionId !== message.connectionId
-  //       );
-  //     }
-  //     return prev;
-  //   });
-  // });
 
-  const onlineEmployeeIds = new Set(presenceData.map(member => member.id));
+  const onlineEmployeeIds = new Set(
+    presenceData.map(member => {
+      return member.clientId;
+    })
+  );
 
   const onlineEmployees = employees
     .filter(e => onlineEmployeeIds.has(e.id))
@@ -187,6 +172,7 @@ export function NavEmployees({
       <SidebarGroupLabel>Employees</SidebarGroupLabel>
       <SidebarMenu>
         <EmployeeList
+          key='online-employees'
           title='Online'
           employees={onlineEmployees}
           isOpen={onlineOpen}
@@ -195,6 +181,7 @@ export function NavEmployees({
           currentUser={currentUser}
         />
         <EmployeeList
+          key='offline-employees'
           title='Offline'
           employees={offlineEmployees}
           isOpen={offlineOpen}

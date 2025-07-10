@@ -10,8 +10,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { PanelLeft } from 'lucide-react';
-import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { auth, currentUser } from '@clerk/nextjs/server';
 
 // Modular Header Component
 function DashboardHeader({ businessName }: { businessName: string }) {
@@ -44,13 +44,15 @@ export default async function BusinessDashboardPage({
 }: {
   params: { businessName: string };
 }) {
-  const user = await currentUser();
+  const { userId } = await auth();
 
-  if (!user) {
+  if (!userId) {
     redirect('/sign-in');
   }
-  let { businessName } = await params;
-  businessName = decodeURIComponent(businessName.replace(/-/g, ' '));
+  params = await params;
+  const businessName = decodeURIComponent(
+    params.businessName.replace(/-/g, ' ')
+  );
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4 sm:py-4'>
@@ -59,7 +61,7 @@ export default async function BusinessDashboardPage({
         <h1 className='text-2xl font-bold capitalize'>
           Welcome to {businessName}
         </h1>
-        <p>Welcome, {user.firstName}</p>
+        {/* <p>Welcome, {user.firstName}</p> */}
       </div>
       <div className='grid auto-rows-min gap-4 md:grid-cols-3'>
         <Card className='aspect-video'>

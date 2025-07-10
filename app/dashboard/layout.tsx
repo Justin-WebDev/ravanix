@@ -15,10 +15,18 @@ export default async function DashboardLayout({
 }) {
   const header = await headers();
   const pathname = header.get('next-url') || '';
-  const isNavDisabled = pathname.includes('/onboarding');
+  const isNavDisabled = pathname === 'http://localhost:3000/onboarding';
 
-  const user = await currentUser();
-  const { userId } = await auth();
+  // const { userId } = await auth();
+  // const user = await currentUser();
+  const [userResult, authResult] = await Promise.allSettled([
+    currentUser(),
+    auth(),
+  ]);
+
+  const user = userResult.status === 'fulfilled' ? userResult.value : null;
+  const { userId } =
+    authResult.status === 'fulfilled' ? authResult.value : { userId: null };
 
   if (!userId || !user) {
     redirect('/sign-in');

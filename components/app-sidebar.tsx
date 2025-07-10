@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/sidebar';
 import { NavEmployees } from './nav-employees';
 import { ChannelProvider } from 'ably/react';
+import Link from 'next/link';
 
 type BusinessInfo = {
   name: string;
@@ -130,7 +131,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size='lg' asChild>
-              <a href='/dashboard'>
+              <Link href='/dashboard'>
                 <div className='bg-sidebar-primary flex aspect-square size-10 items-center justify-center rounded-md'>
                   {business?.logoUrl ? (
                     <Image
@@ -152,7 +153,7 @@ export function AppSidebar({
                     {user.role}
                   </span>
                 </div>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -160,14 +161,12 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={navMainItems} isDisabled={isNavDisabled} />
         {businessId && (
-          <ChannelProvider channelName={`business:${businessId}`}>
+          <ChannelProvider channelName={`${businessId}`}>
             <NavEmployees
               employees={employees}
               businessId={businessId}
               currentUser={{
                 id: user.id,
-                name: user.name,
-                avatar: user.avatar,
               }}
             />
           </ChannelProvider>
