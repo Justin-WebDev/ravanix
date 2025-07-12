@@ -2,7 +2,7 @@
 
 import { ChevronRight, UserCircle2 } from 'lucide-react';
 import React, { useState } from 'react';
-import { usePresence, usePresenceListener } from 'ably/react';
+import { usePresence, usePresenceListener, ChannelProvider } from 'ably/react';
 import Link from 'next/link';
 
 import {
@@ -26,6 +26,7 @@ import { type PresenceMessage } from 'ably';
 
 type Employee = {
   id: string;
+  clerkId: string;
   firstName: string | null;
   lastName: string | null;
   imageUrl: string | null;
@@ -37,7 +38,7 @@ type CurrentUser = {
 
 type NavEmployeesProps = {
   employees: Employee[];
-  businessId: string;
+  businessId: string | null;
   currentUser: CurrentUser;
 };
 
@@ -119,7 +120,7 @@ const EmployeeList = ({
                 key={employee.id}
                 employee={employee}
                 isOnline={isOnline}
-                isCurrentUser={employee.id === currentUser.id} // Check if it's the current user ***
+                isCurrentUser={employee.clerkId === currentUser.id} // Check if it's the current user ***
               />
             ))
           ) : (
@@ -140,10 +141,26 @@ export function NavEmployees({
   businessId,
   currentUser,
 }: NavEmployeesProps) {
-  const channelName = `${businessId}`;
+  if (!businessId) null;
 
-  usePresence(channelName, { status: `${currentUser} signed in` });
-  const { presenceData } = usePresenceListener(channelName);
+  return (
+    <ChannelProvider channelName={`${businessId}`}>
+      <EmployeePresenceList
+        employees={employees}
+        currentUser={currentUser}
+        businessId={businessId}
+      />
+    </ChannelProvider>
+  );
+}
+
+function EmployeePresenceList({
+  employees,
+  currentUser,
+  businessId,
+}: NavEmployeesProps) {
+  const { presenceData } = usePresenceListener(businessId!);
+  usePresence(businessId!, { status: `${currentUser} signed in` });
 
   const onlineEmployeeIds = new Set(
     presenceData.map(member => {
@@ -152,20 +169,18 @@ export function NavEmployees({
   );
 
   const onlineEmployees = employees
-    .filter(e => onlineEmployeeIds.has(e.id))
+    .filter(e => onlineEmployeeIds.has(e.clerkId))
     .sort((a, b) => {
       if (a.id === currentUser.id) return 1; // 'a' (current user) comes last
       if (b.id === currentUser.id) return -1; // 'b' (current user) comes last
       return (a.firstName || '').localeCompare(b.firstName || ''); // Sort others alphabetically
     });
-  const offlineEmployees = employees.filter(e => !onlineEmployeeIds.has(e.id));
+  const offlineEmployees = employees.filter(
+    e => !onlineEmployeeIds.has(e.clerkId)
+  );
 
   const [onlineOpen, setOnlineOpen] = useState(true);
   const [offlineOpen, setOfflineOpen] = useState(false);
-
-  if (!businessId) {
-    return null;
-  }
 
   return (
     <SidebarGroup>

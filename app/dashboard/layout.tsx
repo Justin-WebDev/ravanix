@@ -15,34 +15,24 @@ export default async function DashboardLayout({
 }) {
   const header = await headers();
   const pathname = header.get('next-url') || '';
-  const isNavDisabled = pathname === 'http://localhost:3000/onboarding';
+  const isNavDisabled = pathname.includes('/onboarding');
 
-  // const { userId } = await auth();
-  // const user = await currentUser();
-  const [userResult, authResult] = await Promise.allSettled([
-    currentUser(),
-    auth(),
-  ]);
-
-  const user = userResult.status === 'fulfilled' ? userResult.value : null;
-  const { userId } =
-    authResult.status === 'fulfilled' ? authResult.value : { userId: null };
+  const { userId } = await auth();
+  const user = await currentUser();
 
   if (!userId || !user) {
     redirect('/sign-in');
   }
 
   const dbUser = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { clerkId: userId },
     include: {
       business: {
         include: {
           employees: {
-            // where: {
-            //   id: { not: userId },
-            // },
             select: {
               id: true,
+              clerkId: true,
               firstName: true,
               lastName: true,
               imageUrl: true,

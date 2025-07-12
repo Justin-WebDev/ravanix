@@ -1,9 +1,16 @@
+// app/dashboard/onboarding/create-new-business/page.tsx
 'use client';
 
-import { useActionState, useRef, useEffect, startTransition } from 'react';
+import {
+  useActionState,
+  useRef,
+  useEffect,
+  startTransition,
+  useOptimistic,
+} from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createBusiness } from '@/actions/business';
+
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod/v4';
@@ -36,44 +43,21 @@ import {
 import { toast } from 'sonner';
 import { LoadScript, Autocomplete } from '@react-google-maps/api';
 import { useRouter } from 'next/navigation';
-
-const ACCEPTED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-];
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-
-const formSchema = z.object({
-  name: z.string().min(3).max(50),
-  businessType: z.enum(['mobile', 'shop', 'both']),
-  address: z.string().min(1, 'Address is required.'),
-  city: z.string().min(1, 'City is required.'),
-  state: z.string().min(1, 'State is required.'),
-  zipCode: z.string().min(5, 'A valid zip code is required.').max(10),
-  phone: z.string().optional(),
-  website: z
-    .url({
-      protocol: /^https?$/,
-      hostname: z.regexes.domain,
-    })
-    .optional()
-    .or(z.literal('')),
-  description: z.string().max(250).optional(),
-  logo: z.file().max(MAX_IMAGE_SIZE).mime(ACCEPTED_IMAGE_TYPES).optional(),
-  location: z.string().min(1, 'Location is required.'),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { createBusiness } from '../../(features)/onboarding/_actions/business.actions';
+import {
+  CreateBusinessFormValues,
+  CreateBusinessSchema,
+} from '../../(features)/onboarding/_actions/business.schemas';
 
 export default function CreateNewBusinessPage() {
   const [state, formAction, isPending] = useActionState(createBusiness, null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const router = useRouter();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const [optimisticState, setOptimisticState] = useOptimistic(state);
+
+  const form = useForm<CreateBusinessFormValues>({
+    resolver: zodResolver(CreateBusinessSchema),
     defaultValues: {
       name: '',
       businessType: 'mobile',
@@ -101,22 +85,25 @@ export default function CreateNewBusinessPage() {
       }, 2000);
       return () => clearTimeout(timer);
     }
-    if (state && !state.success) {
-      if (state.errors) {
-        Object.entries(state.errors).forEach(([field, errors]) => {
+
+    // We now use optimisticState to show errors immediately
+    if (optimisticState && !optimisticState.success) {
+      if (optimisticState.errors) {
+        Object.entries(optimisticState.errors).forEach(([field, errors]) => {
           if (errors) {
-            form.setError(field as keyof FormValues, {
+            form.setError(field as keyof CreateBusinessFormValues, {
               type: 'server',
               message: errors.join(', '),
+              // message: errors.join(', '), ***
             });
           }
         });
         toast.error('Please correct the errors in the form.');
-      } else if (state.message) {
-        toast.error(state.message);
+      } else if (optimisticState.message) {
+        toast.error(optimisticState.message);
       }
     }
-  }, [state, router, form]);
+  }, [state, optimisticState, router, form]);
 
   const onLoad = (ac: google.maps.places.Autocomplete) => {
     autocompleteRef.current = ac;
@@ -175,18 +162,26 @@ export default function CreateNewBusinessPage() {
   }
 
   // **This is the key change: Manually constructing FormData**
-  const onSubmit: SubmitHandler<FormValues> = data => {
+  const onSubmit: SubmitHandler<CreateBusinessFormValues> = data => {
     const formData = new FormData();
     // Append all key-value pairs from the form data
     for (const key in data) {
-      const value = data[key as keyof FormValues];
+      const value = data[key as keyof CreateBusinessFormValues];
       if (value instanceof File) {
         formData.append(key, value);
       } else if (typeof value === 'string') {
         formData.append(key, value);
       }
     }
-    startTransition(() => formAction(formData));
+    startTransition(() => {
+      setOptimisticState({
+        ...state,
+        success: false,
+        message: 'Creating...', // Immediately show a pending message
+        // errors: null,
+      });
+      formAction(formData);
+    });
   };
 
   return (

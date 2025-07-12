@@ -12,9 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import {
   joinBusiness,
   fetchBusinesses,
-  type FormState,
   type BusinessForJoining,
-} from '@/actions/business';
+  type JoinBusinessFormState,
+} from '@/app/dashboard/(features)/onboarding/_actions/business.actions';
 import { ArrowLeft } from 'lucide-react';
 
 function searchBusinesses(
@@ -26,7 +26,7 @@ function searchBusinesses(
   return businesses.filter(
     business =>
       business.name.toLowerCase().includes(term) ||
-      business.location.toLowerCase().includes(term) ||
+      (business.location && business.location.toLowerCase().includes(term)) ||
       business.city.toLowerCase().includes(term) ||
       business.state.toLowerCase().includes(term)
   );
@@ -34,8 +34,9 @@ function searchBusinesses(
 
 export default function JoinBusiness() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBusiness, setSelectedBusiness] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [selectedBusiness, setSelectedBusiness] =
+    useState<BusinessForJoining | null>(null);
+
   const [formState, formAction, isSubmitting] = useActionState(
     joinBusiness,
     null
@@ -51,10 +52,8 @@ export default function JoinBusiness() {
   useEffect(() => {
     if (formState?.success) {
       toast.success(formState.message);
-      const timer = setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000); // 2-second delay before redirecting
-      return () => clearTimeout(timer);
+      // Disable the form upon successful submission
+      setSelectedBusiness(null);
     }
     if (formState && !formState.success && formState.message) {
       toast.error(formState.message);
@@ -63,11 +62,25 @@ export default function JoinBusiness() {
 
   const filteredBusinesses = searchBusinesses(businesses, searchTerm);
 
-  const handleBusinessSelect = (businessId: string) => {
-    startTransition(() => {
-      setSelectedBusiness(businessId);
-    });
+  const handleBusinessSelect = (business: BusinessForJoining) => {
+    // Don't allow selection changes if a request was successful
+    if (formState?.success) return;
+    setSelectedBusiness(business);
   };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    if (selectedBusiness) {
+      formData.set('businessId', selectedBusiness.id);
+    }
+    formAction(formData);
+  };
+
+  // Determine if the code input should be shown.
+  // It should only show for the currently selected business when the server says it's required.
+  const showCodeInput =
+    formState?.requiresCode && formState.businessId === selectedBusiness?.id;
 
   return (
     <div className='min-h-screen flex items-center justify-center bg-background'>
@@ -86,21 +99,17 @@ export default function JoinBusiness() {
           </CardHeader>
           <CardContent className='flex flex-col flex-1 min-h-0 space-y-6'>
             <p className='text-muted-foreground'>
-              Search for a detailing business already registered with
-              DetailFlow. You'll need approval from the business owner to join.
+              Search for a detailing business already registered. Some
+              businesses may require a code to join.
             </p>
-            {formState && formState.success && (
+            {formState?.success && (
               <Alert variant='default'>
-                <AlertTitle>Request Sent</AlertTitle>
+                <AlertTitle>Request Sent!</AlertTitle>
                 <AlertDescription>{formState.message}</AlertDescription>
               </Alert>
             )}
             <form
-              action={formData => {
-                startTransition(() => {
-                  formAction(formData);
-                });
-              }}
+              onSubmit={handleSubmit}
               className='flex flex-col flex-1 min-h-0 space-y-4'
             >
               <Input
@@ -108,23 +117,19 @@ export default function JoinBusiness() {
                 placeholder='Search for businesses by name or location...'
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                disabled={
-                  isPending ||
-                  isSubmitting ||
-                  !!(formState && formState.success)
-                }
+                disabled={isSubmitting || !!formState?.success}
               />
               <div className='flex-1 min-h-0 space-y-2 overflow-y-auto'>
                 {filteredBusinesses.length > 0 ? (
-                  filteredBusinesses.map((business: BusinessForJoining) => (
+                  filteredBusinesses.map(business => (
                     <Card
                       key={business.id}
                       className={`cursor-pointer border-2 transition-all ${
-                        selectedBusiness === business.id
+                        selectedBusiness?.id === business.id
                           ? 'border-primary bg-accent'
                           : 'border-muted bg-background hover:border-primary/50'
-                      } ${isPending || !!(formState && formState.success) ? 'opacity-50 pointer-events-none' : ''}`}
-                      onClick={() => handleBusinessSelect(business.id)}
+                      } ${isSubmitting || !!formState?.success ? 'opacity-50 pointer-events-none' : ''}`}
+                      onClick={() => handleBusinessSelect(business)}
                     >
                       <CardContent className='py-3 px-4'>
                         <div className='flex items-center justify-between'>
@@ -139,12 +144,10 @@ export default function JoinBusiness() {
                               </div>
                             )}
                           </div>
-                          <span className='text-xs bg-primary/10 text-primary px-2 py-1 rounded-full'>
+                          <span className='text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize'>
                             {business.businessType === 'both'
                               ? 'Mobile & Shop'
-                              : business.businessType === 'mobile'
-                                ? 'Mobile Only'
-                                : 'Shop Only'}
+                              : `${business.businessType} Only`}
                           </span>
                         </div>
                       </CardContent>
@@ -156,24 +159,39 @@ export default function JoinBusiness() {
                   </div>
                 )}
               </div>
+
+              {/* Conditionally render the Join Code input */}
+              {showCodeInput && (
+                <div className='space-y-2 animate-in fade-in'>
+                  <label htmlFor='joinCode' className='text-sm font-medium'>
+                    Join Code
+                  </label>
+                  <Input
+                    id='joinCode'
+                    name='joinCode'
+                    type='text'
+                    placeholder='Enter the business join code'
+                    required
+                    autoFocus
+                  />
+                </div>
+              )}
+
               <input
                 type='hidden'
                 name='businessId'
-                value={selectedBusiness ?? ''}
+                value={selectedBusiness?.id ?? ''}
               />
               <Button
                 type='submit'
                 className='w-full'
                 disabled={
-                  !selectedBusiness ||
-                  isPending ||
-                  isSubmitting ||
-                  !!(formState && formState.success)
+                  !selectedBusiness || isSubmitting || !!formState?.success
                 }
               >
-                {formState && formState.success
+                {formState?.success
                   ? 'Request Sent'
-                  : isPending || isSubmitting
+                  : isSubmitting
                     ? 'Sending Request...'
                     : 'Request to Join Business'}
               </Button>
