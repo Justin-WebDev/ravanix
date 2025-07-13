@@ -9,7 +9,7 @@ export default async function DashboardPage() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { clerkId: userId },
     include: {
       business: true,
     },

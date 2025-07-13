@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import prisma from '@/lib/prisma';
 import { NavEmployees } from '@/components/nav-employees'; // Import NavEmployees
 import { AblyReactProvider } from '@/components/ably-provider';
+import { Suspense } from 'react';
 
 export default async function DashboardLayout({
   children,
