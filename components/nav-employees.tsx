@@ -1,3 +1,4 @@
+// justin-webdev/ravanix/ravanix-draft/components/nav-employees.tsx
 'use client';
 
 import { ChevronRight, UserCircle2 } from 'lucide-react';
@@ -141,7 +142,7 @@ export function NavEmployees({
   businessId,
   currentUser,
 }: NavEmployeesProps) {
-  if (!businessId) null;
+  if (!businessId) return null;
 
   return (
     <ChannelProvider channelName={`${businessId}`}>

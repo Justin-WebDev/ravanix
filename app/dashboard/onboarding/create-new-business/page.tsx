@@ -13,7 +13,6 @@ import Image from 'next/image';
 
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod/v4';
 import {
   Card,
   CardContent,

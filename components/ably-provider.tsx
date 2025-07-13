@@ -39,7 +39,8 @@ export function AblyReactProvider({ children }: { children: React.ReactNode }) {
   }, [userId, isLoaded]); // The empty dependency array ensures this runs only once.
 
   if (client === undefined) {
-    return <>{children}</>;
+    // return <>{children}</>;
+    return null;
   }
 
   return <AblyProvider client={client}>{children}</AblyProvider>;

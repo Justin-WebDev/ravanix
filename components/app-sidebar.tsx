@@ -161,17 +161,15 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMainItems} isDisabled={isNavDisabled} />
-        {businessId && (
-          // <ChannelProvider channelName={`${businessId}`}>
-          <NavEmployees
-            employees={employees}
-            businessId={businessId}
-            currentUser={{
-              id: user.id,
-            }}
-          />
-          // </ChannelProvider>
-        )}
+        {/* <ChannelProvider channelName={`${businessId}`}> */}
+        <NavEmployees
+          employees={employees}
+          businessId={businessId}
+          currentUser={{
+            id: user.id,
+          }}
+        />
+        {/* </ChannelProvider> */}
         {/* <NavProjects projects={projectItems} isDisabled={isNavDisabled} /> */}
         <NavSecondary
           items={navSecondaryItems}

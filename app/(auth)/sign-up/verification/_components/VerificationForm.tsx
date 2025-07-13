@@ -3,7 +3,7 @@
 import { useSignUp } from '@clerk/nextjs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { GalleryVerticalEnd } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {

@@ -67,6 +67,24 @@ model Client {
 
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
+
+  vehicles Vehicle[]
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  make      String
+  model     String
+  year      Int
+  color     String?
+  plate     String?
+  vin       String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
 }
 
 model JoinRequest {
