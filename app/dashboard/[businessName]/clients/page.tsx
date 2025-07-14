@@ -1,3 +1,4 @@
+// app/dashboard/[businessName]/clients/page.tsx
 import prisma from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -8,9 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-
-// We will create this client component in a later step
-// import { ClientTable } from "./_components/ClientTable";
+// We will create this table component in the next step
+import { ClientTable, type ClientData } from './_components/ClientTable';
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 
 type ClientsPageProps = {
   params: {
@@ -18,19 +20,45 @@ type ClientsPageProps = {
   };
 };
 
-// This function runs on the server to fetch data
-async function getClientsForBusiness(businessSlug: string) {
-  // A real implementation would find the business by its unique slug,
-  // then get its clients. For now, this is a placeholder.
+// This function runs on the server to fetch the client data.
+async function getClientsForBusiness(
+  businessName: string
+): Promise<ClientData[]> {
+  const { userId } = await auth();
+  if (!userId) {
+    // This case should ideally not be reached due to layout protection
+    return [];
+  }
+
+  // Find the business by its URL-decoded name and owner
+  // In a multi-tenant app, ensuring the logged-in user owns the business is crucial.
+  const business = await prisma.business.findFirst({
+    where: {
+      name: decodeURIComponent(businessName),
+      ownerId: userId, // Security check
+    },
+    select: { id: true },
+  });
+
+  if (!business) {
+    // Handle case where business is not found or user is not the owner
+    return [];
+  }
+
   const clients = await prisma.client.findMany({
-    // where: {
-    //   business: {
-    //     name: {
-    //       equals: decodeURIComponent(businessSlug),
-    //       mode: 'insensitive'
-    //     }
-    //   }
-    // }
+    where: {
+      businessId: business.id,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      createdAt: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
   });
   return clients;
 }
@@ -58,20 +86,10 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
       <Card>
         <CardHeader>
           <CardTitle>Client List</CardTitle>
-          <CardDescription>
-            A table of all your clients will be displayed here.
-          </CardDescription>
+          <CardDescription>A list of all your customers.</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* We will replace this with the interactive <ClientTable /> component later */}
-          <div className='p-4 text-sm text-center border-2 border-dashed rounded-lg'>
-            <p className='mb-2 text-muted-foreground'>Raw Client Data:</p>
-            <pre className='text-left bg-muted p-4 rounded-md overflow-x-auto'>
-              {clients.length > 0
-                ? JSON.stringify(clients, null, 2)
-                : 'No clients found.'}
-            </pre>
-          </div>
+          <ClientTable data={clients} />
         </CardContent>
       </Card>
     </div>

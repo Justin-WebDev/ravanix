@@ -1,54 +1,36 @@
+// app/dashboard/[businessName]/clients/_actions/client.actions.ts
 'use server';
 
+import { z } from 'zod/v4';
 import prisma from '@/lib/prisma';
-import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
+import { createSafeAction } from '@/lib/safe-action';
 import { CreateClientSchema } from './client.schemas';
 
-export type CreateClientFormState = {
-  success: boolean;
-  message: string;
-  errors?: Record<string, string[] | undefined>;
-};
+// Define the full input schema for the action by extending the base form schema
+// to include the businessId that we'll pass in.
+const ActionInputSchema = z.intersection(
+  CreateClientSchema,
+  z.object({
+    businessId: z.string(),
+  })
+);
 
-export async function createClient(
-  // businessId: string, // We need to know which business to add the client to
-  prevState: CreateClientFormState,
-  formData: FormData
-): Promise<CreateClientFormState> {
-  const { userId } = await auth();
+export const createClient = createSafeAction(
+  ActionInputSchema,
 
-  if (!userId) {
-    return { success: false, message: 'You must be signed in.' };
-  }
+  // The handler now receives `validatedData` which is the result of
+  // the Zod schema's `.transform()` function.
+  async (validatedData, ctx) => {
+    // We destructure the transformed data: `name` and `address` are now combined.
+    const { businessId, name, email, phone, address, vehicles } = validatedData;
 
-  const businessId = formData.get('businessId') as string;
-  if (!businessId) {
-    return { success: false, message: 'Business ID is missing.' };
-  }
-
-  const jsonString = formData.get('jsonData') as string;
-  const data = JSON.parse(jsonString);
-
-  const validatedFields = CreateClientSchema.safeParse(data);
-
-  if (!validatedFields.success) {
-    return {
-      success: false,
-      message: 'Validation failed. Please check the fields.',
-      errors: validatedFields.error.flatten().fieldErrors,
-    };
-  }
-
-  const { name, email, phone, address, notes, vehicles } = validatedFields.data;
-
-  try {
     await prisma.client.create({
       data: {
         name,
         email,
         phone,
-        address,
+        address, // This is now the combined address string or undefined
         business: {
           connect: { id: businessId },
         },
@@ -58,11 +40,8 @@ export async function createClient(
       },
     });
 
-    // Revalidate the clients page to show the new client
     revalidatePath(`/dashboard/${businessId}/clients`);
-    return { success: true, message: `Successfully created client: ${name}` };
-  } catch (error) {
-    console.error('Failed to create client:', error);
-    return { success: false, message: 'An unexpected error occurred.' };
+
+    return { data: { message: `Successfully created client: ${name}` } };
   }
-}
+);
