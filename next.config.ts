@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    reactCompiler: true,
+  },
+  serverExternalPackages: ['ably'],
 };
 
 export default nextConfig;

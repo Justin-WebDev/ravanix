@@ -29,6 +29,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { NavEmployees } from './nav-employees';
+import { ChannelProvider, usePresence } from 'ably/react';
+import Link from 'next/link';
 
 type BusinessInfo = {
   name: string;
@@ -40,6 +43,14 @@ type UserInfo = {
   email: string;
   avatar: string;
   role: string;
+};
+
+type Employee = {
+  id: string;
+  clerkId: string;
+  firstName: string | null;
+  lastName: string | null;
+  imageUrl: string | null;
 };
 
 // Static navigation data can be defined outside the component
@@ -105,11 +116,15 @@ export function AppSidebar({
   isNavDisabled,
   business,
   user,
+  employees,
+  businessId,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   isNavDisabled?: boolean;
   business: BusinessInfo;
-  user: UserInfo;
+  user: UserInfo & { id: string };
+  employees: Employee[];
+  businessId: string | null;
 }) {
   return (
     <Sidebar variant='inset' {...props}>
@@ -117,7 +132,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size='lg' asChild>
-              <a href='/dashboard'>
+              <Link href={`/dashboard${business?.name}`}>
                 <div className='bg-sidebar-primary flex aspect-square size-10 items-center justify-center rounded-md'>
                   {business?.logoUrl ? (
                     <Image
@@ -139,14 +154,23 @@ export function AppSidebar({
                     {user.role}
                   </span>
                 </div>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMainItems} isDisabled={isNavDisabled} />
-        <NavProjects projects={projectItems} isDisabled={isNavDisabled} />
+        {/* <ChannelProvider channelName={`${businessId}`}> */}
+        <NavEmployees
+          employees={employees}
+          businessId={businessId}
+          currentUser={{
+            id: user.id,
+          }}
+        />
+        {/* </ChannelProvider> */}
+        {/* <NavProjects projects={projectItems} isDisabled={isNavDisabled} /> */}
         <NavSecondary
           items={navSecondaryItems}
           className='mt-auto'

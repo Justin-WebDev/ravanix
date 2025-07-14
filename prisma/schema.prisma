@@ -21,20 +21,18 @@ model User {
   email     String   @unique
   firstName String?
   lastName  String?
+  imageUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  imageUrl String?
-  lastSeen DateTime?
-
-  business   Business? @relation(fields: [businessId], references: [id])
-  businessId String?
-
-  JoinRequest JoinRequest[]
+  businessId    String?
+  business      Business?     @relation("BusinessEmployees", fields: [businessId], references: [id])
+  ownedBusiness Business?     @relation("BusinessOwner")
+  JoinRequest   JoinRequest[]
 }
 
 model Business {
-  id           String        @id @default(cuid())
+  id           String  @id @default(cuid())
   name         String
   logoUrl      String?
   businessType String
@@ -46,20 +44,62 @@ model Business {
   website      String?
   description  String?
   location     String
-  ownerId      String
-  members      User[]
-  JoinRequest  JoinRequest[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+
+  joinCode  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId     String        @unique
+  owner       User          @relation("BusinessOwner", fields: [ownerId], references: [clerkId])
+  employees   User[]        @relation("BusinessEmployees")
+  JoinRequest JoinRequest[]
+  clients     Client[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  vehicles Vehicle[]
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  make      String
+  model     String
+  year      Int
+  color     String?
+  plate     String?
+  vin       String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
 }
 
 model JoinRequest {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING") // e.g., PENDING, APPROVED, DENIED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to the User who made the request
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Relation to the Business being requested
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
-  status     String   @default("pending") // could be 'pending', 'accepted', 'declined'
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, businessId]) // A user can only request to join a business once
 }

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,26 +7,46 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { PanelLeft } from 'lucide-react';
-import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { auth, currentUser } from '@clerk/nextjs/server';
+
+// Modular Header Component
+function DashboardHeader({ businessName }: { businessName: string }) {
+  return (
+    <header className='sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background sm:static sm:h-auto sm:border-0 sm:bg-transparent'>
+      <SidebarTrigger>
+        <PanelLeft className='size-4' />
+      </SidebarTrigger>
+      <Breadcrumb className='hidden md:flex'>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href='/dashboard'>Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className='capitalize'>
+              {businessName}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </header>
+  );
+}
 
 export default async function BusinessDashboardPage({
   params,
 }: {
   params: { businessName: string };
 }) {
-  const user = await currentUser();
+  const { userId } = await auth();
 
-  if (!user) {
+  if (!userId) {
     redirect('/sign-in');
   }
   params = await params;
@@ -35,31 +56,12 @@ export default async function BusinessDashboardPage({
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4 sm:py-4'>
-      <header className='sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background sm:static sm:h-auto sm:border-0 sm:bg-transparent'>
-        <SidebarTrigger>
-          <PanelLeft className='size-4' />
-        </SidebarTrigger>
-        <Breadcrumb className='hidden md:flex'>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <a href='#'>Dashboard</a>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage className='capitalize'>
-                {businessName}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <DashboardHeader businessName={businessName} />
       <div>
         <h1 className='text-2xl font-bold capitalize'>
           Welcome to {businessName}
         </h1>
-        <p>Welcome, {user.firstName}</p>
+        {/* <p>Welcome, {user.firstName}</p> */}
       </div>
       <div className='grid auto-rows-min gap-4 md:grid-cols-3'>
         <Card className='aspect-video'>

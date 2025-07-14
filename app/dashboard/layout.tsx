@@ -5,7 +5,9 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import prisma from '@/lib/prisma';
-import { SocketProvider } from '@/hooks/use-socket';
+import { NavEmployees } from '@/components/nav-employees'; // Import NavEmployees
+import { AblyReactProvider } from '@/components/ably-provider';
+import { Suspense } from 'react';
 
 export default async function DashboardLayout({
   children,
@@ -16,8 +18,8 @@ export default async function DashboardLayout({
   const pathname = header.get('next-url') || '';
   const isNavDisabled = pathname.includes('/onboarding');
 
-  const user = await currentUser();
   const { userId } = await auth();
+  const user = await currentUser();
 
   if (!userId || !user) {
     redirect('/sign-in');
@@ -28,16 +30,13 @@ export default async function DashboardLayout({
     include: {
       business: {
         include: {
-          members: {
-            where: {
-              clerkId: { not: userId },
-            },
+          employees: {
             select: {
               id: true,
+              clerkId: true,
               firstName: true,
               lastName: true,
               imageUrl: true,
-              lastSeen: true,
             },
           },
         },
@@ -46,15 +45,7 @@ export default async function DashboardLayout({
   });
 
   const business = dbUser?.business ?? null;
-  const employees = dbUser?.business?.members ?? [];
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
-  const onlineEmployees = employees.filter(
-    e => e.lastSeen && e.lastSeen > fiveMinutesAgo
-  );
-  const offlineEmployees = employees.filter(
-    e => !e.lastSeen || e.lastSeen <= fiveMinutesAgo
-  );
+  const employees = dbUser?.business?.employees ?? [];
 
   const userDetails = {
     name: user.firstName
@@ -63,20 +54,21 @@ export default async function DashboardLayout({
     email: user.emailAddresses[0].emailAddress,
     avatar: user.imageUrl,
     role: (user.publicMetadata.role as string) || 'user',
+    id: user.id,
   };
 
   return (
-    <SocketProvider>
+    <AblyReactProvider>
       <SidebarProvider>
         <AppSidebar
           isNavDisabled={isNavDisabled}
           business={business}
           user={userDetails}
-          onlineEmployees={onlineEmployees}
-          offlineEmployees={offlineEmployees}
+          employees={employees}
+          businessId={business?.id ?? null}
         />
         <SidebarInset>{children}</SidebarInset>
       </SidebarProvider>
-    </SocketProvider>
+    </AblyReactProvider>
   );
 }
