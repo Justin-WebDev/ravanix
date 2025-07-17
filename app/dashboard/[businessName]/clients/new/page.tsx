@@ -5,24 +5,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { AddClientForm } from './_components/add-client-form';
+import { Suspense } from 'react';
 
-/**
- * Fetches business details from the database based on its slug.
- * This is a server-side operation.
- */
 async function getBusinessBySlug(slug: string) {
   const businessName = decodeURIComponent(slug.replace(/-/g, ' '));
   const business = await prisma.business.findFirst({
-    where: {
-      name: {
-        equals: businessName,
-        mode: 'insensitive',
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-    },
+    where: { name: { equals: businessName, mode: 'insensitive' } },
+    select: { id: true, name: true },
   });
   return business;
 }
@@ -54,8 +43,13 @@ export default async function AddNewClientPage({
           </p>
         </div>
       </header>
-      {/* We pass the server-fetched business data to our new client component. */}
-      <AddClientForm business={business} />
+
+      {/* THIS IS THE FIX: This wrapper constrains the width of the form */}
+      <div className='mx-auto w-full max-w-4xl'>
+        <Suspense fallback={<div>Loading Form...</div>}>
+          <AddClientForm business={business} />
+        </Suspense>
+      </div>
     </div>
   );
 }

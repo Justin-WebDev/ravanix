@@ -4,7 +4,7 @@
 import { z } from 'zod/v4';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { createSafeAction } from '@/lib/safe-action';
+import { executeSafeAction } from '@/lib/safe-action';
 import { CreateClientSchema } from './client.schemas';
 
 // Define the full input schema for the action by extending the base form schema
@@ -16,32 +16,37 @@ const ActionInputSchema = z.intersection(
   })
 );
 
-export const createClient = createSafeAction(
-  ActionInputSchema,
+// This is now a standard async function, which satisfies the "use server" constraint.
+export async function createClient(
+  prevState: unknown, // Required for useActionState, but we won't use it.
+  input: z.infer<typeof ActionInputSchema>
+) {
+  // We call our helper function to handle the logic.
+  return executeSafeAction(
+    ActionInputSchema,
+    input,
+    async (validatedData, ctx) => {
+      const { businessId, name, email, phone, address, vehicles } =
+        validatedData;
 
-  // The handler now receives `validatedData` which is the result of
-  // the Zod schema's `.transform()` function.
-  async (validatedData, ctx) => {
-    // We destructure the transformed data: `name` and `address` are now combined.
-    const { businessId, name, email, phone, address, vehicles } = validatedData;
-
-    await prisma.client.create({
-      data: {
-        name,
-        email,
-        phone,
-        address, // This is now the combined address string or undefined
-        business: {
-          connect: { id: businessId },
+      await prisma.client.create({
+        data: {
+          name,
+          email,
+          phone,
+          address,
+          business: {
+            connect: { id: businessId },
+          },
+          vehicles: {
+            create: vehicles,
+          },
         },
-        vehicles: {
-          create: vehicles,
-        },
-      },
-    });
+      });
 
-    revalidatePath(`/dashboard/${businessId}/clients`);
+      revalidatePath(`/dashboard/${businessId}/clients`);
 
-    return { data: { message: `Successfully created client: ${name}` } };
-  }
-);
+      return { data: { message: `Successfully created client: ${name}` } };
+    }
+  );
+}

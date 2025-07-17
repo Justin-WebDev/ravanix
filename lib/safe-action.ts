@@ -3,13 +3,8 @@
 
 import { z } from 'zod/v4';
 import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 
-/**
- * Defines the structured result for every safe action.
- * This ensures that the client-side hooks always receive a consistent
- * object shape, making it easy to handle success, validation errors,
- * and general server errors.
- */
 export type SafeActionResult<TInput, TOutput> = {
   data?: TOutput;
   serverError?: string;
@@ -17,53 +12,41 @@ export type SafeActionResult<TInput, TOutput> = {
 };
 
 /**
- * This is our higher-order function for creating type-safe server actions.
+ * A helper function to execute server-side logic with authentication and validation.
+ * This is NOT a higher-order function. It's called directly inside a Server Action.
  *
- * @param schema A Zod schema to validate the action's input.
- * @param handler The server-side function that executes the action's logic.
- * @returns A new function that is our type-safe Server Action.
+ * @param schema The Zod schema for input validation.
+ * @param input The raw input data from the client.
+ * @param handler The function containing the core logic to execute.
+ * @returns A structured result object.
  */
-export const createSafeAction = async <TInput, TOutput>(
+export async function executeSafeAction<TInput, TOutput>(
   schema: z.Schema<TInput>,
+  input: TInput,
   handler: (
     validatedData: TInput,
     ctx: { userId: string }
   ) => Promise<SafeActionResult<TInput, TOutput>>
-) => {
-  // This is the actual Server Action that will be exported and used.
-  return async (
-    prevState: SafeActionResult<TInput, TOutput> | undefined,
-    input: TInput
-  ): Promise<SafeActionResult<TInput, TOutput>> => {
-    // 1. Authentication Check
-    // We use Clerk's auth() helper to ensure a user is logged in.
-    const { userId } = await auth();
-    if (!userId) {
-      return { serverError: 'You must be signed in to perform this action.' };
-    }
+): Promise<SafeActionResult<TInput, TOutput>> {
+  // 1. Authentication
+  const { userId } = await auth();
+  if (!userId) {
+    redirect('/sign-in');
+  }
 
-    // 2. Input Validation
-    // We parse the input against the provided Zod schema.
-    const validationResult = schema.safeParse(input);
+  // 2. Validation
+  const validationResult = schema.safeParse(input);
+  if (!validationResult.success) {
+    return {
+      validationErrors: validationResult.error.flatten().fieldErrors,
+    };
+  }
 
-    // If validation fails, we return a structured validation error object.
-    if (!validationResult.success) {
-      return {
-        validationErrors: validationResult.error.flatten()
-          .fieldErrors as Partial<Record<keyof TInput, string[]>>,
-      };
-    }
-
-    // 3. Action Execution
-    // If authentication and validation pass, we execute the handler
-    // with the validated data and the user's ID.
-    try {
-      return await handler(validationResult.data, { userId });
-    } catch (e) {
-      // For any unexpected errors during handler execution, we log them
-      // and return a generic server error message.
-      console.error('Unhandled action error:', e);
-      return { serverError: 'An unexpected server error occurred.' };
-    }
-  };
-};
+  // 3. Execution
+  try {
+    return await handler(validationResult.data, { userId });
+  } catch (e) {
+    console.error('Unhandled action error:', e);
+    return { serverError: 'An unexpected server error occurred.' };
+  }
+}
