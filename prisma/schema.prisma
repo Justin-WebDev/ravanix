@@ -1,11 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// npx dotenv-cli -e .env.local -- npx prisma db push
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,6 +9,8 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// --- Core Authentication & Business Structure ---
 
 model User {
   id        String   @id @default(cuid())
@@ -26,13 +23,17 @@ model User {
   updatedAt DateTime @updatedAt
 
   businessId    String?
-  business      Business?     @relation("BusinessEmployees", fields: [businessId], references: [id])
-  ownedBusiness Business?     @relation("BusinessOwner")
-  JoinRequest   JoinRequest[]
+  business      Business? @relation("BusinessEmployees", fields: [businessId], references: [id])
+  ownedBusiness Business? @relation("BusinessOwner")
+
+  joinRequests JoinRequest[]
+  appointments Appointment[]
+
+  @@index([businessId])
 }
 
 model Business {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   name         String
   logoUrl      String?
   businessType String
@@ -44,17 +45,52 @@ model Business {
   website      String?
   description  String?
   location     String
+  joinCode     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  joinCode  String?
+  // The business owner
+  ownerId String @unique
+  owner   User   @relation("BusinessOwner", fields: [ownerId], references: [clerkId])
+
+  // The employees of the business
+  employees User[] @relation("BusinessEmployees")
+
+  // Relations to other core models
+  subscription   Subscription?
+  twilioConfig   TwilioConfiguration?
+  communications Communication[]
+  joinRequests   JoinRequest[]
+  clients        Client[]
+  appointments   Appointment[]
+  services       Service[]
+  invoices       Invoice[]
+  quotes         Quote[]
+  products       Product[]
+
+  // Index on the ownerId for faster lookups of the business owner
+  @@index([ownerId])
+}
+
+model JoinRequest {
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING") // PENDING, APPROVED, DENIED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownerId     String        @unique
-  owner       User          @relation("BusinessOwner", fields: [ownerId], references: [clerkId])
-  employees   User[]        @relation("BusinessEmployees")
-  JoinRequest JoinRequest[]
-  clients     Client[]
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@unique([userId, businessId])
+  // Indexes for querying requests by user or by business
+  @@index([userId])
+  @@index([businessId])
 }
+
+// --- Client & Vehicle Management (CRM) ---
 
 model Client {
   id        String   @id @default(cuid())
@@ -62,13 +98,21 @@ model Client {
   email     String?  @unique
   phone     String?
   address   String?
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
 
-  vehicles Vehicle[]
+  vehicles       Vehicle[]
+  appointments   Appointment[]
+  invoices       Invoice[]
+  quotes         Quote[]
+  communications Communication[]
+
+  // Index for quickly finding all clients belonging to a business
+  @@index([businessId])
 }
 
 model Vehicle {
@@ -78,28 +122,245 @@ model Vehicle {
   year      Int
   color     String?
   plate     String?
-  vin       String?
+  vin       String?  @unique
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   clientId String
-  client   Client @relation(fields: [clientId], references: [id])
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  appointments Appointment[]
+
+  // Index for quickly finding all vehicles belonging to a client
+  @@index([clientId])
 }
 
-model JoinRequest {
+// --- Core Operations & New Features ---
+
+model Appointment {
   id        String   @id @default(cuid())
-  status    String   @default("PENDING") // e.g., PENDING, APPROVED, DENIED
+  startTime DateTime
+  endTime   DateTime
+  status    String // e.g., Quoted, Scheduled, In Progress, Finished, Unpaid, Paid
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relation to the User who made the request
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  // Relation to the Business being requested
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
 
-  @@unique([userId, businessId]) // A user can only request to join a business once
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation(fields: [assignedToId], references: [id])
+
+  items   AppointmentItem[]
+  invoice Invoice?
+  quote   Quote?
+  images  AppointmentImage[] // Relation to appointment images
+
+  // Composite index for fetching appointments in a specific time range for a business
+  @@index([businessId, startTime, endTime])
+  // Indexes for common lookups
+  @@index([clientId])
+  @@index([vehicleId])
+  @@index([assignedToId])
+}
+
+// New model for before/after pictures
+model AppointmentImage {
+  id        String   @id @default(cuid())
+  url       String // URL from Cloudinary
+  type      String // "BEFORE" or "AFTER"
+  createdAt DateTime @default(now())
+
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+}
+
+model AppointmentItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Int
+  unitPrice   Decimal
+
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  // Optional: Link to a pre-defined service
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([appointmentId])
+  @@index([serviceId])
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  name        String
+  category    String // e.g., Interior, Exterior, Ceramic Coating
+  description String?
+  duration    Int? // Duration in minutes
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  // For pricing models
+  prices ServicePrice[]
+
+  // Relations to other models
+  appointmentItems AppointmentItem[]
+  products         ProductsOnServices[]
+
+  // Index for quickly finding all services for a business
+  @@index([businessId])
+}
+
+model ServicePrice {
+  id          String  @id @default(cuid())
+  vehicleType String // e.g., Sedan, SUV, Truck, or a custom value
+  price       Decimal
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+}
+
+model Quote {
+  id         String   @id @default(cuid())
+  quoteDate  DateTime
+  expiryDate DateTime
+  total      Decimal
+  status     String // e.g., Draft, Sent, Accepted, Declined
+
+  businessId String
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  Business      Business    @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([clientId])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  invoiceDate DateTime
+  dueDate     DateTime
+  total       Decimal
+  status      String // e.g., Draft, Sent, Paid, Overdue
+
+  businessId String
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  Business      Business    @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([clientId])
+}
+
+// --- Inventory & Product Management ---
+
+model Product {
+  id       String  @id @default(cuid())
+  name     String
+  brand    String?
+  supplier String?
+  cost     Decimal
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  inventory Inventory?
+  services  ProductsOnServices[]
+
+  @@index([businessId])
+}
+
+model ProductsOnServices {
+  serviceId  String
+  service    Service @relation(fields: [serviceId], references: [id])
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  amountUsed Float
+  unit       String // e.g., "oz", "ml", "count"
+
+  @@id([serviceId, productId])
+  @@index([productId])
+}
+
+model Inventory {
+  id         String @id @default(cuid())
+  quantity   Float
+  lowStockAt Float? // Threshold for low stock notifications
+
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// --- New: Integrations & Subscriptions ---
+
+model SubscriptionPlan {
+  id            String         @id @default(cuid())
+  name          String         @unique // e.g., "Starter", "Pro", "Enterprise"
+  price         Decimal
+  features      Json // Store a list of feature flags
+  stripePriceId String         @unique
+  Subscription  Subscription[]
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  stripeSubscriptionId String   @unique
+  status               String // e.g., "active", "canceled", "past_due"
+  currentPeriodEnd     DateTime
+
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+}
+
+model TwilioConfiguration {
+  id          String @id @default(cuid())
+  phoneNumber String @unique
+  accountSid  String
+  authToken   String // This should be encrypted
+
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id])
+}
+
+model Communication {
+  id        String   @id @default(cuid())
+  type      String // "SMS" or "EMAIL"
+  direction String // "INBOUND" or "OUTBOUND"
+  content   String
+  sentAt    DateTime @default(now())
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  @@index([businessId, clientId])
 }
