@@ -86,3 +86,62 @@ export const getClientsForSelect = cache(
     tags: ['clients'], // Tagged so it revalidates when a new client is created
   }
 );
+
+// --- NEW TYPE AND QUERY FOR FETCHING CLIENT DETAILS ---
+
+export type ClientDetails = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+};
+
+/**
+ * Fetches the full details for a single client.
+ * Includes an authorization check to ensure the user belongs to the
+ * business that owns the client.
+ */
+export const getClientDetails = cache(
+  async (
+    clientId: string,
+    userId: string | null
+  ): Promise<ClientDetails | null> => {
+    if (!clientId || !userId) {
+      return null;
+    }
+
+    const client = await prisma.client.findFirst({
+      where: {
+        id: clientId,
+        // Authorization check
+        business: {
+          OR: [
+            { ownerId: userId },
+            { employees: { some: { clerkId: userId } } },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+      },
+    });
+
+    if (!client) {
+      return null;
+    }
+
+    // Here you could parse the full address into components if needed
+    // For now, we'll return it as a single string.
+    return client;
+  },
+  ['client-details'], // Cache key prefix
+  {
+    // Tagging allows us to revalidate this cache entry if the client is updated
+    tags: ['clients'],
+  }
+);

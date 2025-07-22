@@ -120,3 +120,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* FIX for Google Maps Autocomplete in Modals */
+/* .pac-container {
+  z-index: 10000 !important;
+} */
