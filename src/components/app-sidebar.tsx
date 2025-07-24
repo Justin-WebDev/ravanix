@@ -28,6 +28,17 @@ import {
 } from '@/components/ui/sidebar';
 import { NavEmployees } from './nav-employees';
 import { ComponentProps } from 'react';
+import dynamic from 'next/dynamic';
+import { AblyProvider } from 'ably/react';
+import { AblyReactProvider } from '@/(features)/ably/ably-provider';
+
+// const AblyProvider = dynamic(
+//   () =>
+//     import('@/(features)/ably/ably-provider').then(
+//       mod => mod.AblyReactProvider
+//     ),
+//   { ssr: false }
+// );
 
 type BusinessInfo = {
   name: string;
@@ -146,13 +157,15 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={navMainItems} isDisabled={isNavDisabled} />
 
-        <NavEmployees
-          employees={employees}
-          businessId={businessId}
-          currentUser={{
-            id: user.id,
-          }}
-        />
+        {businessSlug ? (
+          <NavEmployees
+            employees={employees}
+            businessId={businessId}
+            currentUser={{
+              id: user.id,
+            }}
+          />
+        ) : null}
 
         <NavSecondary
           items={navSecondaryItems}

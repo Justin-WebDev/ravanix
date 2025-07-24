@@ -6,8 +6,6 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import prisma from '@/lib/prisma';
-import { AblyReactProvider } from '@/components/ably-provider';
-
 import { getEmployeesForBusiness } from '@/(features)/employees/employee.queries';
 
 export default async function DashboardLayout({
@@ -61,17 +59,15 @@ export default async function DashboardLayout({
   };
 
   return (
-    <AblyReactProvider>
-      <SidebarProvider>
-        <AppSidebar
-          isNavDisabled={isNavDisabled}
-          business={business}
-          user={userDetails}
-          employees={employees} // Pass the fetched employees to the sidebar
-          businessId={business?.id ?? null}
-        />
-        <SidebarInset>{children}</SidebarInset>
-      </SidebarProvider>
-    </AblyReactProvider>
+    <SidebarProvider>
+      <AppSidebar
+        isNavDisabled={isNavDisabled}
+        business={business}
+        user={userDetails}
+        employees={employees} // Pass the fetched employees to the sidebar
+        businessId={business?.id ?? null}
+      />
+      <SidebarInset>{children}</SidebarInset>
+    </SidebarProvider>
   );
 }

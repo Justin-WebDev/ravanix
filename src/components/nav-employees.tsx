@@ -2,8 +2,8 @@
 'use client';
 
 import { ChevronRight, UserCircle2 } from 'lucide-react';
-import React, { useState } from 'react';
-import { usePresence, usePresenceListener, ChannelProvider } from 'ably/react';
+import React, { Suspense, useEffect, useState } from 'react';
+import { usePresence, usePresenceListener, useAbly } from 'ably/react';
 import Link from 'next/link';
 
 import {
@@ -26,6 +26,7 @@ import { Button } from './ui/button';
 
 // --- NEW IMPORT ---
 import { type Employee } from '@/(features)/employees/employee.types';
+import { AblyReactProvider } from '@/(features)/ably/ably-provider';
 
 // The local Employee type definition has been REMOVED.
 
@@ -140,13 +141,15 @@ export function NavEmployees({
   currentUser,
 }: NavEmployeesProps) {
   return (
-    <ChannelProvider channelName={businessId ?? ''}>
-      <EmployeePresenceList
-        employees={employees}
-        currentUser={currentUser}
-        businessId={businessId}
-      />
-    </ChannelProvider>
+    <Suspense>
+      <AblyReactProvider businessId={businessId!}>
+        <EmployeePresenceList
+          employees={employees}
+          currentUser={currentUser}
+          businessId={businessId}
+        />
+      </AblyReactProvider>
+    </Suspense>
   );
 }
 
@@ -155,9 +158,17 @@ function EmployeePresenceList({
   currentUser,
   businessId,
 }: NavEmployeesProps) {
-  // ... Hook logic remains unchanged ...
-  const { presenceData } = usePresenceListener(businessId || '');
-  usePresence(businessId!, { status: `${currentUser.id} signed in` });
+  const client = useAbly();
+  //@ts-expect-error
+  usePresence({ status: `${currentUser.id} signed in` });
+  //@ts-expect-error
+  const { presenceData } = usePresenceListener();
+
+  useEffect(() => {
+    return () => {
+      client.connection.close();
+    };
+  }, []);
 
   const onlineEmployeeIds = new Set(
     presenceData.map(member => member.clientId)

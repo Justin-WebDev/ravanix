@@ -1,4 +1,4 @@
-// src/app/dashboard/[businessName]/appointments/new/_components/NewAppointmentForm.tsx
+// src/app/dashboard/[businessName]/appointments/new/_components/AddClientFormModal.tsx
 'use client';
 
 import {
@@ -146,6 +146,7 @@ export function NewAppointmentForm({
     name: 'items',
   });
   const selectedClientId = form.watch('clientId');
+  const clientFirstNameValue = form.watch('clientFirstName'); // Watch the first name field for CommandInput
 
   useEffect(() => {
     if (!selectedClientId) {
@@ -161,7 +162,7 @@ export function NewAppointmentForm({
     });
   }, [selectedClientId, form]);
 
-  const handleClientSelect = (clientId: string) => {
+  const handleClientSelect = (clientId: string, clientName: string) => {
     startClientFetchTransition(async () => {
       const clientDetails = await getClientDetailsAction(clientId);
       if (clientDetails) {
@@ -218,17 +219,23 @@ export function NewAppointmentForm({
 
   const onSubmit = (data: NewAppointmentFormValues) => {
     console.log('Form Data Submitted:', data);
-    toast.info('Submit functionality is being connected.', {
-      description:
-        'The form data is ready, but the final backend action needs to be updated.',
+    toast.info('Submit functionality is ready.', {
+      description: 'The form can now be submitted to the server action.',
     });
-    // formAction(data); // This will be enabled in the next step
+    formAction(data);
   };
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!googleMapsApiKey) {
     return <div>Error: Google Maps API key is not configured.</div>;
   }
+
+  // Filter clients based on the current input value for CommandInput
+  const filteredClients = clientFirstNameValue
+    ? clients.filter(client =>
+        client.name.toLowerCase().includes(clientFirstNameValue.toLowerCase())
+      )
+    : clients;
 
   return (
     <Form {...form}>
@@ -256,26 +263,33 @@ export function NewAppointmentForm({
                     >
                       <PopoverTrigger asChild>
                         <FormControl>
-                          <Button
-                            variant='outline'
-                            role='combobox'
-                            className={cn(
-                              'w-full justify-between font-normal',
-                              !field.value && 'text-muted-foreground'
-                            )}
-                          >
-                            {field.value || 'Search or type first name...'}
-                            <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-                          </Button>
+                          <Input
+                            placeholder='Search or type...'
+                            value={field.value}
+                            onChange={e => {
+                              field.onChange(e.target.value);
+                              if (!isComboboxOpen) {
+                                setIsComboboxOpen(true);
+                              }
+                            }}
+                          />
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className='w-[--radix-popover-trigger-width] p-0'>
+                      <PopoverContent
+                        className='p-0 w-[var(--radix-popover-trigger-width)]'
+                        align='start'
+                        sideOffset={-37}
+                        onCloseAutoFocus={e => e.preventDefault()}
+                      >
                         <Command>
                           <CommandInput
-                            placeholder='Search clients...'
+                            placeholder='Search or type first name...'
                             value={field.value}
-                            onValueChange={search => {
-                              field.onChange(search);
+                            onValueChange={value => {
+                              field.onChange(value);
+                              if (!isComboboxOpen) {
+                                setIsComboboxOpen(true);
+                              }
                               if (selectedClientId) {
                                 form.reset({
                                   ...form.getValues(),
@@ -292,15 +306,17 @@ export function NewAppointmentForm({
                             }}
                           />
                           <CommandList>
-                            <CommandEmpty>
+                            <CommandEmpty hidden>
                               No client found. Continue typing to create.
                             </CommandEmpty>
                             <CommandGroup>
-                              {clients.map(client => (
+                              {filteredClients.map(client => (
                                 <CommandItem
                                   value={client.name}
                                   key={client.id}
-                                  onSelect={() => handleClientSelect(client.id)}
+                                  onSelect={() =>
+                                    handleClientSelect(client.id, client.name)
+                                  }
                                 >
                                   <Check
                                     className={cn(
